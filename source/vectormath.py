@@ -1,6 +1,10 @@
 import math
 
 
+def _isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+
+
 class Point2(object):
     '''Represents a 2D point.
     '''
@@ -15,6 +19,12 @@ class Point2(object):
     @property
     def y(self):
         return self.__y
+
+    def __eq__(self, other):
+        return _isclose(self.x, other.x) and _isclose(self.y, other.y)
+
+    def __ne__(self, other):
+        return not self == other
 
     @classmethod
     def from_list(cls, lst):
@@ -70,7 +80,7 @@ class Vector3(Point3):
         super(Vector3, self).__init__(x, y, z)
 
     def __add__(self, rhs):
-        if type(rhs) == type(self):
+        if isinstance(rhs, Point3):
             return Vector3(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
         elif type(rhs) in [float, int]:
             return Vector3(self.x + float(rhs), self.y + float(rhs), self.z + float(rhs))
@@ -78,7 +88,7 @@ class Vector3(Point3):
             raise TypeError
 
     def __sub__(self, rhs):
-        if type(rhs) == type(self):
+        if isinstance(rhs, Point3):
             return Vector3(self.x - rhs.x, self.y - rhs.y, self.z - rhs.z)
         elif type(rhs) in [float, int]:
             return Vector3(self.x - float(rhs), self.y - float(rhs), self.z - float(rhs))
