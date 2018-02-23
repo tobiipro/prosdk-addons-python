@@ -26,6 +26,9 @@ class Point2(object):
     def __ne__(self, other):
         return not self == other
 
+    def __hash__(self):
+        return hash((self.x, self.y))
+
     @classmethod
     def from_list(cls, lst):
         x, y = map(float, lst)

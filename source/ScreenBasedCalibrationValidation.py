@@ -1,5 +1,6 @@
 import math
 import threading
+from collections import defaultdict
 
 import tobii_research
 from . import vectormath
@@ -149,10 +150,7 @@ def _calculate_eye_precision(direction_gaze_point_list, direction_gaze_point_mea
     for dir_gaze_point, dir_gaze_point_mean in zip(direction_gaze_point_list, direction_gaze_point_mean_list):
         angles.append(dir_gaze_point.angle(dir_gaze_point_mean))
     variance = sum([x**2 for x in angles]) / len(angles)
-    if variance > 0.0:
-        standard_deviation = math.sqrt(variance)
-    else:
-        standard_deviation = 0.0
+    standard_deviation = math.sqrt(variance) if variance > 0.0 else 0.0
     return standard_deviation
 
 
@@ -164,10 +162,7 @@ def _calculate_eye_precision_rms(direction_gaze_point_list):
     for gaze_point_vector in direction_gaze_point_list[1:]:
         consecutive_angle_diffs.append(gaze_point_vector.angle(last_gaze_point_vector))
     variance = sum([x**2 for x in consecutive_angle_diffs]) / len(consecutive_angle_diffs)
-    if variance > 0.0:
-        rms = math.sqrt(variance)
-    else:
-        rms = 0.0
+    rms = math.sqrt(variance) if variance > 0.0 else 0.0
     return rms
 
 
@@ -180,72 +175,61 @@ class ScreenBasedCalibrationValidation(object):
     TIMEOUT_MAX = 3000  # ms
 
     def __init__(self,
-                 eye_tracker,
+                 eyetracker,
                  sample_count=30,
                  timeout_ms=1000):
-        if eye_tracker is None:
-            raise ValueError("Eye tracker is none")
-        self.__eye_tracker = eye_tracker
+        if not isinstance(eyetracker, tobii_research.EyeTracker):
+            raise ValueError("Not a valid EyeTracker object")
+        self.__eyetracker = eyetracker
 
-        if sample_count < self.SAMPLE_COUNT_MIN or sample_count > self.SAMPLE_COUNT_MAX:
+        if not self.SAMPLE_COUNT_MIN <= sample_count <= self.SAMPLE_COUNT_MAX:
             raise ValueError("Samples must be between 10 and 3000")
         self.__sample_count = sample_count
 
-        if timeout_ms < self.TIMEOUT_MIN or timeout_ms > self.TIMEOUT_MAX:
+        if not self.TIMEOUT_MIN <= timeout_ms <= self.TIMEOUT_MAX:
             raise ValueError("Timeout must be between 100 and 3000")
         self.__timeout_ms = timeout_ms
 
         self.__current_point = None
         self.__current_gaze_data = []
-        self.__collected_points = []
+        self.__collected_points = defaultdict(list)
 
         self.__is_collecting_data = False
         self.__validation_mode = False
 
         self.__timeout = False
         self.__timeout_thread = None
-        self.__lock = threading.Lock()  # synchronization between timer and gaze data subscription callback
-        self.__result = None
+        self.__lock = threading.RLock()  # synchronization between timer and gaze data subscription callback
 
     def _calibration_timeout_handler(self):
-        # print("_calibration_timeout_handler -- acquire lock...", flush=True)
-        # self.__lock.acquire()
-        # print("_calibration_timeout_handler -- lock acquired!", flush=True)
+        self.__lock.acquire()
         if self.__is_collecting_data:
             self.__timeout = True
             self.__is_collecting_data = False
-        # self.__lock.release()
-        # print("_calibration_timeout_handler -- lock released!", flush=True)
+        self.__lock.release()
 
     def _gaze_data_received(self, gaze_data):
-        # print("_gaze_data_received -- acquire lock...", flush=True)
-        # print("_gaze_data_received ({}) -- acquire lock...".format(threading.get_ident()), flush=True)
-        # self.__lock.acquire()
-        # print("_gaze_data_received -- lock acquired!", flush=True)
+        self.__lock.acquire()
         if self.__is_collecting_data:
             if len(self.__current_gaze_data) < self.__sample_count:
                 if gaze_data.left_eye.gaze_point.validity and gaze_data.right_eye.gaze_point.validity:
                     self.__current_gaze_data.append(gaze_data)
-                    # print("  got valid gaze data!", flush=True)
             else:
                 # Data collecting stopped on sample count condition, timer might still be running
                 self.__timeout_thread.cancel()
 
                 # Data collecting done for this point
-                self.__collected_points.append((self.__current_point, self.__current_gaze_data))
+                self.__collected_points[self.__current_point] += self.__current_gaze_data
                 self.__current_gaze_data = []
                 self.__is_collecting_data = False
-                # print("  got enough data!", flush=True)
-        # self.__lock.release()
-        # print("_gaze_data_received -- lock released!", flush=True)
+        self.__lock.release()
 
     def enter_validation_mode(self):
         if self.__validation_mode or self.__is_collecting_data:
             raise RuntimeWarning("Validation mode already entered")
 
-        self.__collected_points = []
-        self.__result = None
-        self.__eye_tracker.subscribe_to(tobii_research.EYETRACKER_GAZE_DATA, self._gaze_data_received)
+        self.__collected_points = defaultdict(list)
+        self.__eyetracker.subscribe_to(tobii_research.EYETRACKER_GAZE_DATA, self._gaze_data_received)
         self.__validation_mode = True
 
     def leave_validation_mode(self):
@@ -255,10 +239,15 @@ class ScreenBasedCalibrationValidation(object):
             raise RuntimeWarning("Cannot leave validation mode while collecting data")
 
         self.__current_point = None
-        self.__eye_tracker.unsubscribe_from(tobii_research.EYETRACKER_GAZE_DATA, self._gaze_data_received)
+        self.__current_gaze_data = []
+        self.__eyetracker.unsubscribe_from(tobii_research.EYETRACKER_GAZE_DATA, self._gaze_data_received)
         self.__validation_mode = False
 
     def start_collecting_data(self, screen_point):
+        if type(screen_point) is not vectormath.Point2:
+            raise ValueError("A screen point must be of Point2 type")
+        if not (0.0 <= screen_point.x <= 1.0 and 0.0 <= screen_point.y <= 1.0):
+            raise ValueError("Screen point must be within coordinates (0.0, 0.0) and (1.0, 1.0)")
         if not self.__validation_mode:
             raise RuntimeWarning("Not in validation mode")
         if self.__is_collecting_data:
@@ -277,28 +266,16 @@ class ScreenBasedCalibrationValidation(object):
 
         self.__current_point = None
         self.__current_gaze_data = []
-        self.__collected_points = []
-        self.__result = None
+        self.__collected_points = defaultdict(list)
 
     def discard_data(self, screen_point):
         if not self.__validation_mode:
             raise RuntimeWarning("Not in validation mode, no points to discard")
         if self.__is_collecting_data:
             raise RuntimeWarning("Attempted to discard data while collecting data")
-        if self.__collected_points is None or len(self.__collected_points) == 0:
+        if screen_point not in self.__collected_points:
             raise RuntimeWarning("Attempt to discard non-collected point")
-
-        # self.__lock.acquire()
-        pre_discarding_length = len(self.__collected_points)
-        print("Collected points before discard:")
-        for x in self.__collected_points:
-            print("  {}: {}".format(x[0], x[1]))
-        self.__collected_points = [x for x in self.__collected_points if x[0] != screen_point]
-        post_discarding_length = len(self.__collected_points)
-        # self.__lock.release()
-
-        if pre_discarding_length == post_discarding_length:
-            raise RuntimeWarning("Attempt to discard non-collected point")
+        del self.__collected_points[screen_point]
 
     def compute(self):
         if self.__is_collecting_data:
@@ -312,13 +289,14 @@ class ScreenBasedCalibrationValidation(object):
         precision_rms_left_eye_all = []
         precision_rms_right_eye_all = []
 
-        for screen_point, samples in self.__collected_points:
+        for screen_point, samples in self.__collected_points.items():
             if len(samples) < self.__sample_count:
                 # Timeout before collecting enough valid samples, no calculations to be done
-                points.append(CalibrationValidationPoint(screen_point, -1, -1, -1, -1, -1, -1, True, samples))
+                points.append(CalibrationValidationPoint(
+                    screen_point, math.nan, math.nan, math.nan, math.nan, math.nan, math.nan, True, samples))
                 continue
 
-            stimuli_point = _calculate_normalized_point2_to_point3(self.__eye_tracker.get_display_area(), screen_point)
+            stimuli_point = _calculate_normalized_point2_to_point3(self.__eyetracker.get_display_area(), screen_point)
 
             # Prepare data from samples
             gaze_origin_left_all = []
@@ -406,34 +384,28 @@ class ScreenBasedCalibrationValidation(object):
             precision_rms_left_eye_average = sum(precision_rms_left_eye_all) / num_points
             precision_rms_right_eye_average = sum(precision_rms_right_eye_all) / num_points
         else:
-            accuracy_left_eye_average = -1
-            accuracy_right_eye_average = -1
-            precision_left_eye_average = -1
-            precision_right_eye_average = -1
-            precision_rms_left_eye_average = -1
-            precision_rms_right_eye_average = -1
+            accuracy_left_eye_average = math.nan
+            accuracy_right_eye_average = math.nan
+            precision_left_eye_average = math.nan
+            precision_right_eye_average = math.nan
+            precision_rms_left_eye_average = math.nan
+            precision_rms_right_eye_average = math.nan
 
-        self.__result = CalibrationValidationResult(points,
-                                                    accuracy_left_eye_average,
-                                                    accuracy_right_eye_average,
-                                                    precision_left_eye_average,
-                                                    precision_right_eye_average,
-                                                    precision_rms_left_eye_average,
-                                                    precision_rms_right_eye_average)
-        return self.__result
+        result = CalibrationValidationResult(points,
+                                             accuracy_left_eye_average,
+                                             accuracy_right_eye_average,
+                                             precision_left_eye_average,
+                                             precision_right_eye_average,
+                                             precision_rms_left_eye_average,
+                                             precision_rms_right_eye_average)
+        return result
 
     @property
-    def collecting_data(self):
+    def is_collecting_data(self):
         '''Test if data collecting is in progess.
         '''
         return self.__is_collecting_data
 
     @property
-    def validation_mode(self):
+    def is_validation_mode(self):
         return self.__validation_mode
-
-    @property
-    def result(self):
-        '''Fetch the latest calibration result.
-        '''
-        return self.__result
