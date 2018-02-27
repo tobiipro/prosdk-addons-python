@@ -20,7 +20,7 @@ Do not hesitate to contribute to this project and create issues if you find some
 #### Example
 Before starting a calibration validation, some setup with the desired tracker is needed.
 
-```
+```python
 import time
 import tobii_research as tr
 from tobii_research_addons import ScreenBasedCalibrationValidation, Point2
@@ -32,7 +32,7 @@ eyetracker = tr.EyeTracker(eyetracker_address)
 Now it is possible to create a calibration validation object with the eye tracker object previously created.
 More information about this class and its methods can be found in the [ScreenBasedCalibrationValidation](./source/ScreenBasedCalibrationValidation.py) definition.
 
-```
+```python
 sample_count = 30
 timeout_ms = 1000
 
@@ -41,13 +41,13 @@ calib = ScreenBasedCalibrationValidation(eyetracker, sample_count, timeout_ms)
 
 The next step is to enter validation mode. Note that this action will cause the tracker to start collecting gaze data.
 
-```
+```python
 calib.enter_validation_mode()
 ```
 
 List the points that are to be used during the validation.
 
-```
+```python
 points_to_collect = [
     Point2(0.1, 0.1),
     Point2(0.1, 0.9),
@@ -58,7 +58,7 @@ points_to_collect = [
 
 When collecting data a point should be presented on the screen in the appropriate position.
 
-```
+```python
 for point in points_to_collect:
     # Visualize point on screen
     # ...
@@ -69,7 +69,7 @@ for point in points_to_collect:
 
 Next, just call the compute method to obtain the calibration validation result object.
 
-```
+```python
 calibration_result = calib.compute()
 ```
 
@@ -81,6 +81,6 @@ If the result is satisfactory then the only thing left to do is to leave validat
 This action will clear all the data collected in the current validation session and stop the gaze data collection
 from the tracker.
 
-```
+```python
 calib.leave_validation_mode()
 ```
