@@ -1,3 +1,19 @@
+'''
+Copyright 2018 Tobii AB
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+'''
+
 import math
 import threading
 from collections import defaultdict
@@ -7,7 +23,8 @@ from . import vectormath
 
 
 class CalibrationValidationPoint(object):
-    '''Represents a calibration validation point.
+    '''Represents a collected point that goes into the calibration validation. It contains calculated values for
+    accuracy and precision as well as the original gaze samples collected for the point.
     '''
 
     def __init__(self,
@@ -15,8 +32,8 @@ class CalibrationValidationPoint(object):
                  accuracy_right_eye,
                  precision_left_eye,
                  precision_right_eye,
-                 rms_left_eye,
-                 rms_right_eye,
+                 precision_rms_left_eye,
+                 precision_rms_right_eye,
                  timed_out,
                  screen_point,
                  gaze_data):
@@ -24,51 +41,70 @@ class CalibrationValidationPoint(object):
         self.__accuracy_right_eye = accuracy_right_eye
         self.__precision_left_eye = precision_left_eye
         self.__precision_right_eye = precision_right_eye
-        self.__rms_left_eye = rms_left_eye
-        self.__rms_right_eye = rms_right_eye
+        self.__precision_rms_left_eye = precision_rms_left_eye
+        self.__precision_rms_right_eye = precision_rms_right_eye
         self.__timed_out = timed_out
         self.__screen_point = screen_point
         self.__gaze_data = gaze_data
 
     @property
     def accuracy_left_eye(self):
+        '''The accuracy in degrees for the left eye.
+        '''
         return self.__accuracy_left_eye
 
     @property
     def accuracy_right_eye(self):
+        '''The accuracy in degrees for the right eye.
+        '''
         return self.__accuracy_right_eye
 
     @property
     def precision_left_eye(self):
+        '''The precision (standard deviation) in degrees for the left eye.
+        '''
         return self.__precision_left_eye
 
     @property
     def precision_right_eye(self):
+        '''The precision (standard deviation) in degrees for the right eye.
+        '''
         return self.__precision_right_eye
 
     @property
-    def rms_left_eye(self):
-        return self.__rms_left_eye
+    def precision_rms_left_eye(self):
+        '''The precision (root mean square of sample-to-sample error) in degrees for the left eye.
+        '''
+        return self.__precision_rms_left_eye
 
     @property
-    def rms_right_eye(self):
-        return self.__rms_right_eye
+    def precision_rms_right_eye(self):
+        '''The precision (root mean square of sample-to-sample error) in degrees for the right eye.
+        '''
+        return self.__precision_rms_right_eye
 
     @property
     def timed_out(self):
+        '''A boolean indicating if there was a timeout while collecting data for this point.
+        '''
         return self.__timed_out
 
     @property
     def screen_point(self):
+        '''The 2D coordinates of this point (in Active Display Coordinate System).
+        '''
         return self.__screen_point
 
     @property
     def gaze_data(self):
+        '''The gaze data samples collected for this point. These samples are the base for the calculated accuracy
+        and precision.
+        '''
         return self.__gaze_data
 
 
 class CalibrationValidationResult(object):
-    '''Represents a result of a calibration validation.
+    '''Contains the result of the calibration validation.
     '''
 
     def __init__(self,
@@ -89,30 +125,46 @@ class CalibrationValidationResult(object):
 
     @property
     def points(self):
+        '''The results of the calibration validation per point (same points as were collected).
+        '''
         return self.__points
 
     @property
     def average_accuracy_left(self):
+        '''The accuracy in degrees averaged over all collected points for the left eye.
+        '''
         return self.__average_accuracy_left
 
     @property
     def average_accuracy_right(self):
+        '''The accuracy in degrees averaged over all collected points for the right eye.
+        '''
         return self.__average_accuracy_right
 
     @property
     def average_precision_left(self):
+        '''The precision (standard deviation) in degrees averaged over all collected points for the left eye.
+        '''
         return self.__average_precision_left
 
     @property
     def average_precision_right(self):
+        '''The precision (standard deviation) in degrees averaged over all collected points for the right eye.
+        '''
         return self.__average_precision_right
 
     @property
     def average_precision_rms_left(self):
+        '''The precision (root mean square of sample-to-sample error) in degrees averaged over all collected points
+        for the left eye.
+        '''
         return self.__average_precision_rms_left
 
     @property
     def average_precision_rms_right(self):
+        '''The precision (root mean square of sample-to-sample error) in degrees averaged over all collected points
+        for the right eye.
+        '''
         return self.__average_precision_rms_right
 
 
@@ -167,7 +219,7 @@ def _calculate_eye_precision_rms(direction_gaze_point_list):
 
 
 class ScreenBasedCalibrationValidation(object):
-    '''Provides methods and properties for screen based calibration validation.
+    '''Provides methods and properties for managing calibration validation for screen based eye trackers.
     '''
     SAMPLE_COUNT_MIN = 10
     SAMPLE_COUNT_MAX = 3000
@@ -178,6 +230,16 @@ class ScreenBasedCalibrationValidation(object):
                  eyetracker,
                  sample_count=30,
                  timeout_ms=1000):
+        '''Create a calibration validation object for screen based eye trackers.
+
+        Args:
+        eyetracker: See @ref EyeTracker.
+        sample_count: The number of samples to collect. Default 30, minimum 10, maximum 3000.
+        timeout_ms: Timeout in milliseconds. Default 1000, minimum 100, maximum 3000.
+
+        Raises:
+        ValueError
+        '''
         if not isinstance(eyetracker, tobii_research.EyeTracker):
             raise ValueError("Not a valid EyeTracker object")
         self.__eyetracker = eyetracker
@@ -225,6 +287,11 @@ class ScreenBasedCalibrationValidation(object):
         self.__lock.release()
 
     def enter_validation_mode(self):
+        '''Enter the calibration validation mode and starts subscribing to gaze data from the eye tracker.
+
+        Raises:
+        RuntimeWarning
+        '''
         if self.__validation_mode or self.__is_collecting_data:
             raise RuntimeWarning("Validation mode already entered")
 
@@ -233,6 +300,11 @@ class ScreenBasedCalibrationValidation(object):
         self.__validation_mode = True
 
     def leave_validation_mode(self):
+        '''Leaves the calibration validation mode, clears all collected data, and unsubscribes from the eye tracker.
+
+        Raises:
+        RuntimeWarning
+        '''
         if not self.__validation_mode:
             raise RuntimeWarning("Not in validation mode")
         if self.__is_collecting_data:
@@ -244,6 +316,17 @@ class ScreenBasedCalibrationValidation(object):
         self.__validation_mode = False
 
     def start_collecting_data(self, screen_point):
+        '''Starts collecting data for a calibration validation point.The argument used is the point the user
+        is assumed to be looking at and is given in the active display area coordinate system.
+        Please check State property to know when data collection is completed (or timed out).
+
+        Args:
+        screen_point: The normalized 2D point on the display area.
+
+        Raises:
+        ValueError
+        RuntimeWarning
+        '''
         if type(screen_point) is not vectormath.Point2:
             raise ValueError("A screen point must be of Point2 type")
         if not (0.0 <= screen_point.x <= 1.0 and 0.0 <= screen_point.y <= 1.0):
@@ -261,6 +344,11 @@ class ScreenBasedCalibrationValidation(object):
         self.__is_collecting_data = True
 
     def clear(self):
+        '''Clears all collected data.
+
+        Raises:
+        RuntimeWarning
+        '''
         if self.__is_collecting_data:
             raise RuntimeWarning("Attempted to discard data while collecting data")
 
@@ -269,6 +357,14 @@ class ScreenBasedCalibrationValidation(object):
         self.__collected_points = defaultdict(list)
 
     def discard_data(self, screen_point):
+        '''Removes the collected data for a specific calibration validation point.
+
+        Args:
+        screen_point: The calibration point to remove.
+
+        Raises:
+        RuntimeWarning
+        '''
         if not self.__validation_mode:
             raise RuntimeWarning("Not in validation mode, no points to discard")
         if self.__is_collecting_data:
@@ -278,6 +374,16 @@ class ScreenBasedCalibrationValidation(object):
         del self.__collected_points[screen_point]
 
     def compute(self):
+        '''Uses the collected data and tries to compute accuracy and precision values for all points.
+        If the calculation is successful, the result is returned, and stored in the Result property
+        of the CalibrationValidation object. If there is insufficient data to compute the results
+        for a certain point that CalibrationValidationPoint will contain invalid data (NaN) for the
+        results. Gaze data will still be untouched. If there is no valid data for any point, the
+        average results of CalibrationValidationResult will be invalid (NaN) as well.
+
+        Returns:
+        The latest @ref CalibrationValidationResult.
+        '''
         if self.__is_collecting_data:
             raise RuntimeWarning("Still collecting data")
 
@@ -402,10 +508,18 @@ class ScreenBasedCalibrationValidation(object):
 
     @property
     def is_collecting_data(self):
-        '''Test if data collecting is in progess.
+        '''Gets if data collecting is in progess.
+
+        Returns:
+        True if data collectin is in progress.
         '''
         return self.__is_collecting_data
 
     @property
     def is_validation_mode(self):
+        '''Gets if in validation mode.
+
+        Returns:
+        True if in validation mode.
+        '''
         return self.__validation_mode
