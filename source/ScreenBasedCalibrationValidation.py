@@ -202,7 +202,7 @@ def _calculate_eye_precision(direction_gaze_point_list, direction_gaze_point_mea
     for dir_gaze_point, dir_gaze_point_mean in zip(direction_gaze_point_list, direction_gaze_point_mean_list):
         angles.append(dir_gaze_point.angle(dir_gaze_point_mean))
     variance = sum([x**2 for x in angles]) / len(angles)
-    standard_deviation = math.sqrt(variance) if variance > 0.0 else 0.0
+    standard_deviation = math.sqrt(variance)
     return standard_deviation
 
 
@@ -213,8 +213,9 @@ def _calculate_eye_precision_rms(direction_gaze_point_list):
     last_gaze_point_vector = direction_gaze_point_list[0]
     for gaze_point_vector in direction_gaze_point_list[1:]:
         consecutive_angle_diffs.append(gaze_point_vector.angle(last_gaze_point_vector))
+        last_gaze_point_vector = gaze_point_vector
     variance = sum([x**2 for x in consecutive_angle_diffs]) / len(consecutive_angle_diffs)
-    rms = math.sqrt(variance) if variance > 0.0 else 0.0
+    rms = math.sqrt(variance)
     return rms
 
 
@@ -382,7 +383,7 @@ class ScreenBasedCalibrationValidation(object):
         average results of CalibrationValidationResult will be invalid (NaN) as well.
 
         Returns:
-        The latest @ref CalibrationValidationResult.
+        An instance of @ref CalibrationValidationResult.
         '''
         if self.__is_collecting_data:
             raise RuntimeWarning("Still collecting data")
