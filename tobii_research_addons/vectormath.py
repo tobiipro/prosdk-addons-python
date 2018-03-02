@@ -50,7 +50,7 @@ class Point2(object):
         return hash((self.x, self.y))
 
     def __repr__(self):
-        return "{0}({1:.3f}, {2:.3f})".format(self.__class__.__name__, str(self.x), str(self.y))
+        return "{0}({1:.3f}, {2:.3f})".format(self.__class__.__name__, self.x, self.y)
 
     @classmethod
     def from_list(cls, lst):

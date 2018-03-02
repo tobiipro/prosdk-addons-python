@@ -8,14 +8,27 @@ Addons for the Tobii Pro SDK.
 
 The Tobii Pro SDK is available at: https://www.tobiipro.com/product-listing/tobii-pro-sdk/ <br/>
 Documentation to the API: http://developer.tobiipro.com/python.html
-
-
-### Calibration Validation
-* To use this feature it is necessary to install the tobii-research package from PyPI, see [getting started](http://developer.tobiipro.com/python/python-getting-started.html).
-* Next just download or clone this folder to your own python project directory.
-
+Getting started: http://developer.tobiipro.com/python/python-getting-started.html
 
 Do not hesitate to contribute to this project and create issues if you find something that might be wrong or could be improved.
+
+## Installation
+
+* Download or clone this folder.
+* Navigate to the cloned or downloaded and unpacked folder.
+* Install by using pip.
+```
+pip install .
+```
+
+The Tobii Pro SDK Python package will be installed automatically by pip.
+
+## Features
+
+### Calibration Validation
+
+The package contains functionality for validating calibrations by calculating various statistics for different
+stimuli points. Note: There are no functionality for actually presenting the stimuli points on screen.
 
 #### Example
 Before starting a calibration validation, some setup with the desired tracker is needed.
