@@ -294,6 +294,20 @@ class ScreenBasedCalibrationValidation(object):
                 self.__is_collecting_data = False
         self.__lock.release()
 
+    def __enter__(self):
+        self.enter_validation_mode()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.is_validation_mode:
+            if self.is_collecting_data:
+                # Stop data collection
+                self.__lock.acquire()
+                self.__timeout_thread.cancel()
+                self.__is_collecting_data = False
+                self.__lock.release()
+            self.leave_validation_mode()
+
     def enter_validation_mode(self):
         '''Enter the calibration validation mode and starts subscribing to gaze data from the eye tracker.
 
