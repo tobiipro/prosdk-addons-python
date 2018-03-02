@@ -102,6 +102,13 @@ class CalibrationValidationPoint(object):
         '''
         return self.__gaze_data
 
+    def __repr__(self):
+        return "{}({}, {}, {}, {}, {}, {}, {}, {})".format(self.__class__.__name__, self.screen_point,
+            self.accuracy_left_eye, self.accuracy_right_eye,
+            self.precision_left_eye, self.precision_right_eye,
+            self.precision_rms_left_eye, self.precision_rms_right_eye,
+            self.timed_out)
+
 
 class CalibrationValidationResult(object):
     '''Contains the result of the calibration validation.
@@ -388,7 +395,7 @@ class ScreenBasedCalibrationValidation(object):
         if self.__is_collecting_data:
             raise RuntimeWarning("Still collecting data")
 
-        points = []
+        points = defaultdict(list)
         accuracy_left_eye_all = []
         accuracy_right_eye_all = []
         precision_left_eye_all = []
@@ -399,8 +406,8 @@ class ScreenBasedCalibrationValidation(object):
         for screen_point, samples in self.__collected_points.items():
             if len(samples) < self.__sample_count:
                 # Timeout before collecting enough valid samples, no calculations to be done
-                points.append(CalibrationValidationPoint(
-                    screen_point, math.nan, math.nan, math.nan, math.nan, math.nan, math.nan, True, samples))
+                points[screen_point] += [CalibrationValidationPoint(
+                    screen_point, math.nan, math.nan, math.nan, math.nan, math.nan, math.nan, True, samples)]
                 continue
 
             stimuli_point = _calculate_normalized_point2_to_point3(self.__eyetracker.get_display_area(), screen_point)
@@ -424,6 +431,7 @@ class ScreenBasedCalibrationValidation(object):
                     vectormath.Point3.from_list(sample.left_eye.gaze_point.position_in_user_coordinates))
                 gaze_point_right_all.append(
                     vectormath.Point3.from_list(sample.right_eye.gaze_point.position_in_user_coordinates))
+
             gaze_origin_left_mean = _calculate_mean_point(gaze_origin_left_all)
             gaze_origin_right_mean = _calculate_mean_point(gaze_origin_right_all)
             gaze_point_left_mean = _calculate_mean_point(gaze_point_left_all)
@@ -462,8 +470,7 @@ class ScreenBasedCalibrationValidation(object):
             precision_rms_right_eye = _calculate_eye_precision_rms(direction_gaze_point_right_all)
 
             # Add a calibration validation point
-            points.append(CalibrationValidationPoint(
-                screen_point,
+            points[screen_point] += [CalibrationValidationPoint(
                 accuracy_left_eye,
                 accuracy_right_eye,
                 precision_left_eye,
@@ -471,7 +478,8 @@ class ScreenBasedCalibrationValidation(object):
                 precision_rms_left_eye,
                 precision_rms_right_eye,
                 False,  # no timeout
-                samples))
+                screen_point,
+                samples)]
 
             # Cache all calculations
             accuracy_left_eye_all.append(accuracy_left_eye)

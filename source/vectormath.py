@@ -21,6 +21,10 @@ def _isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
+def _clamp(value, lower, upper):
+    return max(lower, min(value, upper))
+
+
 class Point2(object):
     '''Represents a 2D point.
     '''
@@ -44,6 +48,9 @@ class Point2(object):
 
     def __hash__(self):
         return hash((self.x, self.y))
+
+    def __repr__(self):
+        return "{0}({1:.3f}, {2:.3f})".format(self.__class__.__name__, str(self.x), str(self.y))
 
     @classmethod
     def from_list(cls, lst):
@@ -80,8 +87,14 @@ class Point3(object):
     def __mul__(self, rhs):
         return Point3(self.x * float(rhs), self.y * float(rhs), self.z * float(rhs))
 
+    def __eq__(self, other):
+        return _isclose(self.x, other.x) and _isclose(self.y, other.y) and _isclose(self.z, other.z)
+
+    def __ne__(self, other):
+        return not self == other
+
     def __repr__(self):
-        return '{0}({1}, {2}, {3})'.format(self.__class__.__name__, self.x, self.y, self.z)
+        return '{0}({1:.3f}, {2:.3f}, {3:.3f})'.format(self.__class__.__name__, self.x, self.y, self.z)
 
     def distance(self, other_point):
         return math.sqrt((other_point.x - self.x) ** 2 + (other_point.y - self.y) ** 2 + (other_point.z - self.z) ** 2)
@@ -133,7 +146,8 @@ class Vector3(Point3):
 
     def angle(self, vector3):
         '''Return the angle between two vectors in degrees.'''
-        return math.degrees(math.acos((self.dot(vector3) / (self.magnitude() * vector3.magnitude()))))
+        tmp = self.dot(vector3) / (self.magnitude() * vector3.magnitude())
+        return math.degrees(math.acos(_clamp(tmp, -1.0, 1.0)))
 
     @classmethod
     def from_points(cls, from_point, to_point):
