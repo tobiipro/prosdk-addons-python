@@ -1,7 +1,7 @@
-# prosdk-addons-python
+# prosdk-addons-python - Calibration validation
 
 ## What is it
-Addons for the Tobii Pro SDK.
+Add-ons for the Tobii Pro SDK.
 
 ![alt text](https://www.tobiipro.com/imagevault/publishedmedia/6rkt3jb83qlottsfh1ts/Tobii-Pro-SDK-with-VR-3_1-banner.jpg)
 
