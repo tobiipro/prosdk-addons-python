@@ -155,3 +155,37 @@ class Vector3(Point3):
             displacement = to_point - from_point
             return cls(displacement.x, displacement.y, displacement.z)
         raise TypeError
+
+
+def calculate_normalized_point2_to_point3(display_area, target_point):
+    '''Get the 3D gaze point representation based on the normalized 2D point and the @ref GazeData information.
+
+    Args:
+    display_area: @ref DisplayArea object.
+    target_point: Screen point as a normalized @ref Point2 object.
+
+    Returns:
+    The @ref Point3 gaze point.
+    '''
+    display_area_top_right = Point3.from_list(display_area.top_right)
+    display_area_top_left = Point3.from_list(display_area.top_left)
+    display_area_bottom_left = Point3.from_list(display_area.bottom_left)
+    dx = (display_area_top_right - display_area_top_left) * target_point.x
+    dy = (display_area_bottom_left - display_area_top_left) * target_point.y
+    return display_area_top_left + dx + dy
+
+
+def calculate_mean_point(points):
+    '''Calculate an average point from a set of points.
+
+    Args:
+    points: An iterable container of @ref Point3 objects.
+
+    Returns:
+    The mean point as a @ref Point3 object.
+    '''
+    average_point = Point3()
+    for point in points:
+        average_point = average_point + point
+    average_point = average_point * (1.0 / len(points))
+    return average_point

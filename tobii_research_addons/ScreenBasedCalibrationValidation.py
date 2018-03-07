@@ -102,13 +102,6 @@ class CalibrationValidationPoint(object):
         '''
         return self.__gaze_data
 
-    def __repr__(self):
-        return "{}({}, {}, {}, {}, {}, {}, {}, {})".format(self.__class__.__name__, self.screen_point,
-            self.accuracy_left_eye, self.accuracy_right_eye,
-            self.precision_left_eye, self.precision_right_eye,
-            self.precision_rms_left_eye, self.precision_rms_right_eye,
-            self.timed_out)
-
 
 class CalibrationValidationResult(object):
     '''Contains the result of the calibration validation.
@@ -173,25 +166,6 @@ class CalibrationValidationResult(object):
         for the right eye.
         '''
         return self.__average_precision_rms_right
-
-
-def _calculate_mean_point(points):
-    '''Calculate an average point from a set of points
-    '''
-    average_point = vectormath.Point3()
-    for point in points:
-        average_point = average_point + point
-    average_point = average_point * (1.0 / len(points))
-    return average_point
-
-
-def _calculate_normalized_point2_to_point3(display_area, target_point):
-    display_area_top_right = vectormath.Point3.from_list(display_area.top_right)
-    display_area_top_left = vectormath.Point3.from_list(display_area.top_left)
-    display_area_bottom_left = vectormath.Point3.from_list(display_area.bottom_left)
-    dx = (display_area_top_right - display_area_top_left) * target_point.x
-    dy = (display_area_bottom_left - display_area_top_left) * target_point.y
-    return display_area_top_left + dx + dy
 
 
 def _calculate_eye_accuracy(gaze_origin_mean, gaze_point_mean, stimuli_point):
@@ -424,7 +398,8 @@ class ScreenBasedCalibrationValidation(object):
                     screen_point, math.nan, math.nan, math.nan, math.nan, math.nan, math.nan, True, samples)]
                 continue
 
-            stimuli_point = _calculate_normalized_point2_to_point3(self.__eyetracker.get_display_area(), screen_point)
+            stimuli_point = vectormath.calculate_normalized_point2_to_point3(
+                self.__eyetracker.get_display_area(), screen_point)
 
             # Prepare data from samples
             gaze_origin_left_all = []
@@ -446,10 +421,10 @@ class ScreenBasedCalibrationValidation(object):
                 gaze_point_right_all.append(
                     vectormath.Point3.from_list(sample.right_eye.gaze_point.position_in_user_coordinates))
 
-            gaze_origin_left_mean = _calculate_mean_point(gaze_origin_left_all)
-            gaze_origin_right_mean = _calculate_mean_point(gaze_origin_right_all)
-            gaze_point_left_mean = _calculate_mean_point(gaze_point_left_all)
-            gaze_point_right_mean = _calculate_mean_point(gaze_point_right_all)
+            gaze_origin_left_mean = vectormath.calculate_mean_point(gaze_origin_left_all)
+            gaze_origin_right_mean = vectormath.calculate_mean_point(gaze_origin_right_all)
+            gaze_point_left_mean = vectormath.calculate_mean_point(gaze_point_left_all)
+            gaze_point_right_mean = vectormath.calculate_mean_point(gaze_point_right_all)
 
             for sample in samples:
                 gaze_origin_left = vectormath.Point3.from_list(
