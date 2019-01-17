@@ -16,7 +16,7 @@ setup(
     description='Addons for the Tobii Pro SDK.',
     long_description=long_description,
     url='https://github.com/tobiipro/prosdk-addons-python',
-    author='Tobii AB',
+    author='Tobii Pro AB',
     author_email='tobiiprosdk@tobii.com',
     classifiers=[
         #   3 - Alpha
