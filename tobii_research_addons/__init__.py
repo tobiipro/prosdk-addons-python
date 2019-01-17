@@ -7,10 +7,10 @@ from .vectormath import Point2, Point3, Vector3
 __all__ = ("ScreenBasedCalibrationValidation", "CalibrationValidationPoint", "CalibrationValidationResult",
            "calculate_mean_point", "calculate_normalized_point2_to_point3", "Point2", "Point3", "Vector3")
 
-__author__ = 'Tobii AB'
+__author__ = 'Tobii Pro AB'
 __licence__ = 'BSD'
 __copyright__ = '''
-Copyright 2018 Tobii AB
+Copyright 2019 Tobii Pro AB
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
